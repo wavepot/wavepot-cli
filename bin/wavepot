@@ -1,0 +1,67 @@
+#!/usr/bin/env electron
+
+var fs = require('fs');
+var path = require('path');
+var debounce = require('debounce');
+var browserify = require('browserify');
+var watchify = require('watchify');
+var babelify = require('babelify');
+var wav = require('../lib/wav');
+var concat = require('concat-stream');
+var electron = require('electron');
+var program = require('commander');
+
+program
+  .version('1.0.0')
+  .usage('[options] <sourcefile>')
+  .option('-b, --build', 'build with browserify')
+  .parse(process.argv);
+
+if (!program.args.length) program.help();
+
+var filename = path.resolve(program.args[0]);
+
+var BrowserWindow = electron.BrowserWindow;
+var app = electron.app;
+var win;
+
+console.log('sourcefile:', filename);
+
+var entry = path.resolve(path.join(__dirname, '..', 'index.html'));
+var updateSourceFile = debounce(() => win.webContents.send('sourcefile', filename), 10);
+
+app.on('ready', () => {
+  win = new BrowserWindow({ show: false });
+  win.loadURL('file://' + entry);
+  win.on('closed', () => win = null);
+  win.webContents.on('did-finish-load', () => {
+    if (!program.build) {
+      fs.watch(filename, updateSourceFile);
+      updateSourceFile();
+    } else {
+      console.log('building:', filename);
+
+      var b = browserify(filename, {
+        cache: {},
+        packageCache: {},
+        standalone: 'build'
+      });
+      b.plugin(watchify);
+      b.transform(babelify, { global: true, presets: ['latest'] });
+      b.transform(wav);
+
+      b.on('update', bundle);
+      b.on('error', err => console.error(err.stack));
+
+      bundle();
+
+      function bundle() {
+        b.bundle().pipe(concat(sendSource));
+      }
+
+      function sendSource(js) {
+        win.webContents.send('source', js);
+      }
+    }
+  });
+});
