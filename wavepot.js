@@ -14,18 +14,13 @@ window.sampleRate = audio.sampleRate;
 
 var bpm = 60;
 var sources = {};
-var lastBeatTime = 0;
 var beatTime;
 
-clockBegin();
+clock();
 connect();
 
-function clockBegin() {
-  beatTime = 4 / (bpm / 60);
-}
-
-function clockEnd() {
-  lastBeatTime = beatTime;
+function clock() {
+  beatTime = 1 / (bpm / 60);
 }
 
 function connect() {
@@ -55,7 +50,7 @@ function compile(js) {
   if ('bpm' in mod.exports) {
     console.log('set bpm:', mod.exports.bpm);
     bpm = mod.exports.bpm;
-    clockBegin();
+    clock();
   }
 
   for (var key in mod.exports) {
@@ -70,8 +65,6 @@ function compile(js) {
   for (var key in sources) {
     if (!(key in mod.exports)) stop(key);
   }
-
-  clockEnd();
 }
 
 function createSource(key) {
@@ -83,16 +76,17 @@ function createSource(key) {
 
 function createBuffer(fn, multiplier) {
   var channels = 2;
-  var frameCount = Math.floor(audio.sampleRate * beatTime * multiplier);
-  var buffer = audio.createBuffer(2, frameCount, audio.sampleRate);
+  var beatFrames = Math.floor(audio.sampleRate * beatTime);
+  var blockFrames = Math.floor(beatFrames * multiplier);
+  var buffer = audio.createBuffer(2, blockFrames, audio.sampleRate);
 
   var sample = 0;
 
   var L = buffer.getChannelData(0);
   var R = buffer.getChannelData(1);
 
-  for (var i = 0; i < frameCount; i++) {
-    sample = fn(1 + i / frameCount, i);
+  for (var i = 0; i < blockFrames; i++) {
+    sample = fn(1 + i / beatFrames, i);
     L[i] = R[i] = normalize(sample);
   }
 
@@ -100,14 +94,14 @@ function createBuffer(fn, multiplier) {
 }
 
 function play(key, fn, multiplier) {
-  multiplier = multiplier || 1;
+  multiplier = multiplier || 4;
   var buffer = createBuffer(fn, multiplier);
   var source = createSource();
 
   var syncTime = normalize(
     audio.currentTime +
-    (multiplier * lastBeatTime -
-    (audio.currentTime % (multiplier * lastBeatTime)))
+    (multiplier * beatTime -
+    (audio.currentTime % (multiplier * beatTime)))
   );
 
   if (key in sources) stop(key, syncTime);
