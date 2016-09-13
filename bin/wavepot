@@ -6,6 +6,7 @@ var debounce = require('debounce');
 var browserify = require('browserify');
 var watchify = require('watchify');
 var babelify = require('babelify');
+var latest = require('babel-preset-latest');
 var wav = require('../lib/wav');
 var concat = require('concat-stream');
 var electron = require('electron');
@@ -47,7 +48,7 @@ app.on('ready', () => {
         standalone: 'build'
       });
       b.plugin(watchify);
-      b.transform(babelify, { global: true, presets: ['latest'] });
+      b.transform(babelify, { global: true, presets: [latest] });
       b.transform(wav);
 
       b.on('update', bundle);
