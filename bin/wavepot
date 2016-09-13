@@ -56,7 +56,9 @@ app.on('ready', () => {
       bundle();
 
       function bundle() {
-        b.bundle().pipe(concat(sendSource));
+        b.bundle()
+          .on('error', err => console.error(err.stack))
+          .pipe(concat(sendSource));
       }
 
       function sendSource(js) {
