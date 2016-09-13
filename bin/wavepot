@@ -13,7 +13,7 @@ var electron = require('electron');
 var program = require('commander');
 
 program
-  .version('1.0.0')
+  .version('1.0.2')
   .usage('[options] <sourcefile>')
   .option('-b, --build', 'build with browserify')
   .parse(process.argv);
