@@ -53,23 +53,25 @@ function compile(js) {
     clock();
   }
 
+  for (var key in sources) {
+    if (!(key in mod.exports)) sources[key].stop();
+  }
+
   for (var key in mod.exports) {
     if ('function' === typeof mod.exports[key]) {
       console.log('compile:', key);
       play(key, mod.exports[key]);
     } else if (Array.isArray(mod.exports[key])) {
+      console.log('compile:', key);
       play(key, mod.exports[key][1], mod.exports[key][0])
     }
-  }
-
-  for (var key in sources) {
-    if (!(key in mod.exports)) stop(key);
   }
 }
 
 function createSource(key) {
   var source = audio.createBufferSource();
   source.loop = true;
+  source.onended = disconnect;
   source.connect(audio.destination);
   return source;
 }
@@ -97,14 +99,9 @@ function play(key, fn, multiplier) {
   multiplier = multiplier || 4;
   var buffer = createBuffer(fn, multiplier);
   var source = createSource();
+  var syncTime = calcSyncTime(multiplier);
 
-  var syncTime = normalize(
-    audio.currentTime +
-    (multiplier * beatTime -
-    (audio.currentTime % (multiplier * beatTime)))
-  );
-
-  if (key in sources) stop(key, syncTime);
+  if (key in sources) sources[key].stop(syncTime);
 
   sources[key] = source;
   source.buffer = buffer;
@@ -113,9 +110,12 @@ function play(key, fn, multiplier) {
   console.log('playing:', key);
 }
 
-function stop(key, syncTime) {
-  sources[key].stop(syncTime);
-  sources[key].onended = disconnect;
+function calcSyncTime(multiplier) {
+  return normalize(
+    audio.currentTime +
+    (multiplier * beatTime -
+    (audio.currentTime % (multiplier * beatTime)))
+  );
 }
 
 function disconnect() {
